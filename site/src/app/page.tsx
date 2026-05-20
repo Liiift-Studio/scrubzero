@@ -149,6 +149,12 @@ const result = await redactEntities(pdf.buffer, [
 
 			{/* Footer */}
 			<footer className="w-full max-w-2xl lg:max-w-5xl flex flex-col gap-6 pt-8 border-t border-white/10 text-xs">
+				<div className="flex flex-col gap-1 opacity-40">
+					<p className="uppercase tracking-widest text-xs">Also from Liiift Studio</p>
+					<a href="https://unseal.dev" className="hover:opacity-100 transition-opacity">
+						unseal — Detect and remove fake PDF redactions →
+					</a>
+				</div>
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 opacity-50">
 					<a href="https://liiift.studio" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity">
 						liiift.studio

@@ -13,7 +13,13 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md"],
+  "bin": {
+    "pdf-redact": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -22,12 +28,28 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build && npm run typecheck"
   },
-  "keywords": ["pdf", "redact", "redaction", "nodejs", "lambda", "typescript", "privacy", "gdpr", "hipaa"],
+  "keywords": [
+    "pdf",
+    "redact",
+    "redaction",
+    "nodejs",
+    "lambda",
+    "typescript",
+    "privacy",
+    "gdpr",
+    "hipaa"
+  ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/Liiift-Studio/pdf-redact" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Liiift-Studio/pdf-redact"
+  },
   "homepage": "https://github.com/Liiift-Studio/pdf-redact#readme",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
+    "commander": "^12.1.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.0.379"
   },

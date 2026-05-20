@@ -1,18 +1,31 @@
-// tsup build configuration for dual ESM + CJS output
+// tsup build configuration — dual ESM + CJS output with CLI entry point.
 import { defineConfig } from 'tsup';
 
-export default defineConfig({
-	entry: ['src/index.ts'],
-	format: ['esm', 'cjs'],
-	dts: true,
-	sourcemap: true,
-	clean: true,
-	splitting: false,
-	external: ['pdfjs-dist', 'pdf-lib'],
-	target: 'node18',
-	outExtension({ format }) {
-		return {
-			js: format === 'cjs' ? '.cjs' : '.js',
-		};
+export default defineConfig([
+	{
+		entry: { index: 'src/index.ts' },
+		format: ['esm', 'cjs'],
+		dts: true,
+		splitting: false,
+		sourcemap: true,
+		clean: true,
+		target: 'node18',
+		outDir: 'dist',
+		treeshake: true,
+		external: ['pdfjs-dist', 'pdf-lib', 'commander'],
 	},
-});
+	{
+		entry: { cli: 'src/cli.ts' },
+		format: ['esm'],
+		dts: false,
+		splitting: false,
+		sourcemap: true,
+		clean: false,
+		target: 'node18',
+		outDir: 'dist',
+		banner: {
+			js: '#!/usr/bin/env node',
+		},
+		external: ['pdfjs-dist', 'pdf-lib', 'commander'],
+	},
+]);
