@@ -19,6 +19,10 @@ export interface RedactionRegion {
 	color?: [number, number, number];
 	/** Optional label rendered inside the redaction bar when addRedactionMarkers is true */
 	label?: string;
+	/** FOIA exemption code (e.g., "6" for personal privacy, "7(C)" for law enforcement) */
+	exemptionCode?: string;
+	/** Human-readable basis for the exemption */
+	exemptionBasis?: string;
 }
 
 /**
@@ -33,6 +37,23 @@ export interface SearchPattern {
 	color?: [number, number, number];
 	/** Optional label for redaction markers */
 	label?: string;
+	/**
+	 * PHI detector hook: an async function that takes page text and returns
+	 * bounding boxes of detected PHI regions. Integrates with AWS Comprehend Medical,
+	 * Azure Text Analytics, or custom NER models.
+	 */
+	phiDetector?: (
+		text: string,
+		pageNum: number,
+	) => Promise<
+		Array<{
+			text: string;
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+		}>
+	>;
 }
 
 /**
@@ -45,6 +66,48 @@ export interface RedactOptions {
 	sanitizeMetadata?: boolean;
 	/** Render a visible "REDACTED" label inside each redaction bar. Default: false */
 	addRedactionMarkers?: boolean;
+	/** Include a structured redaction manifest in the result. Default: false */
+	generateManifest?: boolean;
+	/** Identifies the operator who performed the redaction (for audit logs) */
+	redactorId?: string;
+	/** Reason code for the redaction (e.g., FOIA exemption code) */
+	basisCode?: string;
+}
+
+/**
+ * A single entry in the redaction audit manifest, recording one redacted region.
+ */
+export interface RedactionEntry {
+	/** 1-indexed page number */
+	page: number;
+	/** Bounding box [x1, y1, x2, y2] in PDF user-space units (bottom-left origin) */
+	bbox: [number, number, number, number];
+	/** FOIA or other exemption code, if provided */
+	basisCode: string | undefined;
+	/** Operator who performed the redaction, if provided */
+	redactorId: string | undefined;
+	/** ISO 8601 timestamp of when the redaction was applied */
+	timestamp: string;
+	/** SHA-256 hex digest of the original (pre-redaction) PDF bytes */
+	sha256Before: string;
+	/** SHA-256 hex digest of the redacted output PDF bytes (populated after save) */
+	sha256After: string;
+}
+
+/**
+ * Structured audit manifest attached to a redaction result when generateManifest is true.
+ */
+export interface RedactionManifest {
+	/** ISO 8601 timestamp of when the manifest was created */
+	createdAt: string;
+	/** Operator who performed the redaction, if provided */
+	redactorId: string | undefined;
+	/** One entry per redacted region */
+	entries: RedactionEntry[];
+	/** SHA-256 hex digest of the input PDF bytes */
+	sha256Input: string;
+	/** SHA-256 hex digest of the output PDF bytes */
+	sha256Output: string;
 }
 
 /**
@@ -57,6 +120,8 @@ export interface RedactResult {
 	redactedCount: number;
 	/** Sorted list of 1-indexed page numbers that had at least one redaction */
 	pagesAffected: number[];
+	/** Structured redaction manifest for audit and compliance purposes */
+	manifest?: RedactionManifest;
 }
 
 /**
@@ -75,6 +140,8 @@ export interface NormalizedRegion {
 	yMax: number;
 	color: [number, number, number];
 	label: string | undefined;
+	/** FOIA exemption code carried through from the source region */
+	exemptionCode: string | undefined;
 }
 
 /**

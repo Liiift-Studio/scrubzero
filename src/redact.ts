@@ -7,15 +7,33 @@ import type {
 	RedactResult,
 	NormalizedRegion,
 	TextItem,
+	RedactionManifest,
+	RedactionEntry,
 } from './types.js';
 import { removeTextOperatorsInRegion, inflate, deflate } from './content-stream.js';
 
 /** Default redaction options */
-const DEFAULTS: Required<RedactOptions> = {
+const DEFAULTS: Required<Omit<RedactOptions, 'redactorId' | 'basisCode'>> & {
+	redactorId: undefined;
+	basisCode: undefined;
+} = {
 	flattenAnnotations: true,
 	sanitizeMetadata: true,
 	addRedactionMarkers: false,
+	generateManifest: false,
+	redactorId: undefined,
+	basisCode: undefined,
 };
+
+/**
+ * Compute the SHA-256 hex digest of a buffer using Node.js built-in crypto.
+ */
+async function sha256Hex(data: ArrayBuffer | Uint8Array): Promise<string> {
+	const { createHash } = await import('node:crypto');
+	const hash = createHash('sha256');
+	hash.update(Buffer.from(data instanceof Uint8Array ? data : new Uint8Array(data)));
+	return hash.digest('hex');
+}
 
 /**
  * Convert a user-supplied RedactionRegion into a NormalizedRegion.
@@ -33,35 +51,38 @@ function normalizeRegion(region: RedactionRegion, pageHeight: number): Normalize
 		yMax,
 		color: region.color ?? [0, 0, 0],
 		label: region.label,
+		exemptionCode: region.exemptionCode,
 	};
 }
 
 /**
  * Determine whether a text item's bounding box intersects a normalised region.
  * Both are in PDF user-space (bottom-left origin).
+ * item.y is the BOTTOM of the text; item.y + item.height is the TOP.
+ * region.yMin is the BOTTOM; region.yMax is the TOP.
  */
 function textItemIntersectsRegion(item: TextItem, region: NormalizedRegion): boolean {
-	const itemXMax = item.x + item.width;
-	const itemYMax = item.y + item.height;
+	const itemTop = item.y + item.height;
 	return (
-		itemXMax > region.xMin &&
 		item.x < region.xMax &&
-		itemYMax > region.yMin &&
-		item.y < region.yMax
+		item.x + item.width > region.xMin &&
+		item.y < region.yMax &&
+		itemTop > region.yMin
 	);
 }
 
 /**
  * Extract all text items with page positions from a PDF using pdfjs-dist.
  * Returns items grouped by 1-indexed page number.
+ * Text item transforms from pdfjs are in PDF bottom-left coordinate space.
  */
 async function extractTextItems(pdfBytes: ArrayBuffer): Promise<Map<number, TextItem[]>> {
 	// Use the legacy build which works in Node.js without a bundler
 	const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
-	// Silence pdfjs worker warnings in Node.js context
+	// Copy the buffer before passing to pdfjs — pdfjs may transfer (neuter) the source buffer
 	const loadingTask = pdfjsLib.getDocument({
-		data: new Uint8Array(pdfBytes),
+		data: new Uint8Array(pdfBytes.slice(0)),
 		useWorkerFetch: false,
 		isEvalSupported: false,
 		useSystemFonts: true,
@@ -74,8 +95,6 @@ async function extractTextItems(pdfBytes: ArrayBuffer): Promise<Map<number, Text
 
 	for (let pageNum = 1; pageNum <= numPages; pageNum++) {
 		const page = await pdfDoc.getPage(pageNum);
-		const viewport = page.getViewport({ scale: 1 });
-		const pageHeight = viewport.height;
 
 		const textContent = await page.getTextContent();
 		const items: TextItem[] = [];
@@ -86,11 +105,11 @@ async function extractTextItems(pdfBytes: ArrayBuffer): Promise<Map<number, Text
 			if (!item.str || item.str.trim() === '') continue;
 
 			// item.transform is a 6-element matrix [a, b, c, d, e, f]
-			// e and f are the x and y translation (bottom-left origin in viewport space)
+			// e and f are the x and y translation — already in PDF bottom-left coordinate space
 			const [, , , , tx, ty] = item.transform;
 			const x = tx;
-			// Flip y: pdfjs reports in viewport coords (top-left origin), we need bottom-left
-			const y = pageHeight - ty - (item.height ?? 0);
+			// pdfjs text transforms are in PDF bottom-left coordinate space
+			const y = ty;
 
 			items.push({
 				str: item.str,
@@ -236,16 +255,17 @@ async function sanitizeMetadata(pdfLibDoc: PDFDocument): Promise<void> {
  * For each region this function:
  * 1. Removes text-drawing operators from the page content stream (content-stream layer)
  * 2. Draws a filled rectangle over the region (visual layer)
- * 3. Optionally renders a "REDACTED" label inside the bar
+ * 3. Optionally renders a label inside the bar ("REDACTED", exemption code, or custom label)
  *
  * Metadata can be wiped via `options.sanitizeMetadata` (default: true).
+ * An audit manifest is attached when `options.generateManifest` is true.
  */
 export async function redact(
 	pdf: ArrayBuffer,
 	regions: RedactionRegion[],
 	options?: RedactOptions,
 ): Promise<RedactResult> {
-	const opts: Required<RedactOptions> = { ...DEFAULTS, ...options };
+	const opts = { ...DEFAULTS, ...options };
 
 	if (regions.length === 0) {
 		// Nothing to redact — return original bytes
@@ -253,6 +273,10 @@ export async function redact(
 		const outBytes = await pdfLibDoc.save();
 		return { pdf: outBytes, redactedCount: 0, pagesAffected: [] };
 	}
+
+	// Compute SHA-256 of input for manifest (computed even if manifest not requested, for efficiency we gate it)
+	const sha256Input = opts.generateManifest ? await sha256Hex(pdf) : '';
+	const nowIso = new Date().toISOString();
 
 	// Step 1: Extract text positions from original PDF
 	const textItemsByPage = await extractTextItems(pdf);
@@ -266,6 +290,7 @@ export async function redact(
 	const numPages = pdfLibDoc.getPageCount();
 	const pagesAffected = new Set<number>();
 	let redactedCount = 0;
+	const manifestEntries: RedactionEntry[] = [];
 
 	// Load a font for optional labels
 	let labelFont = null;
@@ -314,11 +339,19 @@ export async function redact(
 				borderWidth: 0,
 			});
 
-			// Optionally render the REDACTED label
+			// Optionally render the label inside the redaction bar
 			if (opts.addRedactionMarkers && labelFont) {
 				const barHeight = nr.yMax - nr.yMin;
 				const barWidth = nr.xMax - nr.xMin;
-				const label = nr.label ?? 'REDACTED';
+
+				// Prefer exemption code label over generic label, fall back to "REDACTED"
+				let label: string;
+				if (nr.exemptionCode !== undefined) {
+					label = `Exemption ${nr.exemptionCode}`;
+				} else {
+					label = nr.label ?? 'REDACTED';
+				}
+
 				const fontSize = Math.min(barHeight * 0.6, 10);
 				const textWidth = labelFont.widthOfTextAtSize(label, fontSize);
 				const textX = nr.xMin + (barWidth - textWidth) / 2;
@@ -336,6 +369,19 @@ export async function redact(
 				}
 			}
 
+			// Record manifest entry if requested
+			if (opts.generateManifest) {
+				manifestEntries.push({
+					page: pageNum,
+					bbox: [nr.xMin, nr.yMin, nr.xMax, nr.yMax],
+					basisCode: opts.basisCode,
+					redactorId: opts.redactorId,
+					timestamp: nowIso,
+					sha256Before: sha256Input,
+					sha256After: '', // populated after save below
+				});
+			}
+
 			redactedCount++;
 			pagesAffected.add(pageNum);
 		}
@@ -349,9 +395,30 @@ export async function redact(
 	const outBytes = await pdfLibDoc.save();
 	const sortedPages = Array.from(pagesAffected).sort((a, b) => a - b);
 
-	return {
+	// Build manifest after save so we can hash the output
+	let manifest: RedactionManifest | undefined;
+	if (opts.generateManifest) {
+		const sha256Output = await sha256Hex(outBytes);
+		// Patch sha256After on all entries
+		for (const entry of manifestEntries) {
+			entry.sha256After = sha256Output;
+		}
+		manifest = {
+			createdAt: nowIso,
+			redactorId: opts.redactorId,
+			entries: manifestEntries,
+			sha256Input,
+			sha256Output,
+		};
+	}
+
+	const result: RedactResult = {
 		pdf: outBytes,
 		redactedCount,
 		pagesAffected: sortedPages,
 	};
+	if (manifest !== undefined) {
+		result.manifest = manifest;
+	}
+	return result;
 }

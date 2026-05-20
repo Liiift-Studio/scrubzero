@@ -134,6 +134,296 @@ export function removeTextOperatorsInRegion(
 	return result;
 }
 
+/** Margin (in PDF units) used when comparing text positions to region bounds */
+const POSITION_MARGIN = 10;
+
+/**
+ * Parse a decimal number from ASCII bytes starting at position `pos`.
+ * Returns [value, endIndex] or null if no number starts at pos.
+ */
+function parseDecimal(bytes: Uint8Array, pos: number): [number, number] | null {
+	const len = bytes.length;
+	let i = pos;
+	// Skip leading whitespace
+	while (i < len && (bytes[i] === SPACE || bytes[i] === 0x09 || bytes[i] === 0x0a || bytes[i] === 0x0d)) {
+		i++;
+	}
+	if (i >= len) return null;
+
+	let negative = false;
+	if (bytes[i] === 0x2d) { // '-'
+		negative = true;
+		i++;
+	} else if (bytes[i] === 0x2b) { // '+'
+		i++;
+	}
+
+	let intPart = 0;
+	let hasDigits = false;
+	while (i < len && bytes[i] !== undefined && bytes[i]! >= 0x30 && bytes[i]! <= 0x39) {
+		intPart = intPart * 10 + (bytes[i]! - 0x30);
+		hasDigits = true;
+		i++;
+	}
+
+	let fracPart = 0;
+	let fracScale = 1;
+	if (i < len && bytes[i] === 0x2e) { // '.'
+		i++;
+		while (i < len && bytes[i] !== undefined && bytes[i]! >= 0x30 && bytes[i]! <= 0x39) {
+			fracPart = fracPart * 10 + (bytes[i]! - 0x30);
+			fracScale *= 10;
+			i++;
+		}
+	}
+
+	if (!hasDigits) return null;
+
+	const value = (intPart + fracPart / fracScale) * (negative ? -1 : 1);
+	return [value, i];
+}
+
+/**
+ * Try to read N numbers before a given operator keyword at `opEnd`.
+ * Returns the numbers array or null if not enough numbers were found.
+ * Scans backward from opEnd within the current BT block starting at `blockStart`.
+ */
+function readNumbersBefore(
+	bytes: Uint8Array,
+	opEnd: number,
+	count: number,
+	blockStart: number,
+): number[] | null {
+	// Collect tokens (whitespace-separated) scanning backward from opEnd
+	// This is complex to do backwards, so instead we scan forward from blockStart
+	// and collect all number sequences before opEnd
+
+	const numbers: number[] = [];
+	let i = blockStart;
+
+	while (i < opEnd) {
+		// Skip whitespace
+		while (i < opEnd && (bytes[i] === SPACE || bytes[i] === 0x09 || bytes[i] === 0x0a || bytes[i] === 0x0d)) {
+			i++;
+		}
+		if (i >= opEnd) break;
+
+		// Try to parse a number
+		const parsed = parseDecimal(bytes, i);
+		if (parsed !== null) {
+			const [val, end] = parsed;
+			if (end > i && end <= opEnd) {
+				numbers.push(val);
+				i = end;
+				continue;
+			}
+		}
+
+		// Skip non-numeric token (operator or string)
+		// If it's a string literal, skip the whole string
+		if (bytes[i] === LPAREN) {
+			numbers.length = 0; // strings reset the number accumulator
+			let depth = 1;
+			i++;
+			while (i < opEnd && depth > 0) {
+				if (bytes[i] === BACKSLASH) { i += 2; continue; }
+				if (bytes[i] === LPAREN) depth++;
+				else if (bytes[i] === RPAREN) depth--;
+				i++;
+			}
+			continue;
+		}
+		if (bytes[i] === LANGLE && bytes[i + 1] !== LANGLE) {
+			numbers.length = 0;
+			while (i < opEnd && bytes[i] !== RANGLE) i++;
+			if (i < opEnd) i++;
+			continue;
+		}
+
+		// Skip any other token (operators, names, etc.) — they reset number accumulator
+		numbers.length = 0;
+		while (i < opEnd && bytes[i] !== SPACE && bytes[i] !== 0x09 && bytes[i] !== 0x0a && bytes[i] !== 0x0d) {
+			i++;
+		}
+	}
+
+	if (numbers.length < count) return null;
+	// Return the last `count` numbers
+	return numbers.slice(numbers.length - count);
+}
+
+/**
+ * Check if two ASCII bytes at position `i` in `bytes` match characters `a` and `b`,
+ * and that the preceding byte is whitespace or start-of-block and the following byte is whitespace or end.
+ */
+function matchOp2(bytes: Uint8Array, i: number, a: number, b: number): boolean {
+	if (i + 1 >= bytes.length) return false;
+	if (bytes[i] !== a || bytes[i + 1] !== b) return false;
+	// Check delimiter after
+	const after = bytes[i + 2];
+	return (
+		after === undefined ||
+		after === SPACE ||
+		after === 0x09 ||
+		after === 0x0a ||
+		after === 0x0d
+	);
+}
+
+/**
+ * Parse a content stream and blank only those string arguments (Tj/TJ operators)
+ * whose estimated text position falls within the given region.
+ * Position is estimated from Tm and Td/TD operators within each BT/ET block.
+ *
+ * This is more precise than replaceTextInStream() which blanks all strings.
+ */
+export function replaceTextInRegion(
+	streamBytes: Uint8Array,
+	region: NormalizedRegion,
+): Uint8Array {
+	const out = new Uint8Array(streamBytes);
+	const len = out.length;
+
+	// State tracking across the stream
+	let inTextBlock = false;
+	let blockStart = 0;
+	// Current text position within the BT/ET block
+	let txPos = 0;
+	let tyPos = 0;
+
+	let i = 0;
+
+	while (i < len) {
+		const b = out[i];
+
+		// Skip whitespace
+		if (b === SPACE || b === 0x09 || b === 0x0a || b === 0x0d) {
+			i++;
+			continue;
+		}
+
+		// Detect BT (begin text block)
+		if (!inTextBlock && b === 0x42 && out[i + 1] === 0x54) { // 'B', 'T'
+			const after = out[i + 2];
+			if (after === undefined || after === SPACE || after === 0x09 || after === 0x0a || after === 0x0d) {
+				inTextBlock = true;
+				blockStart = i + 2;
+				txPos = 0;
+				tyPos = 0;
+				i += 2;
+				continue;
+			}
+		}
+
+		// Detect ET (end text block)
+		if (inTextBlock && b === 0x45 && out[i + 1] === 0x54) { // 'E', 'T'
+			const after = out[i + 2];
+			if (after === undefined || after === SPACE || after === 0x09 || after === 0x0a || after === 0x0d) {
+				inTextBlock = false;
+				i += 2;
+				continue;
+			}
+		}
+
+		if (inTextBlock) {
+			// Check for Tm operator (6 numbers): a b c d e f Tm
+			// e = txPos, f = tyPos
+			if (b === 0x54 && out[i + 1] === 0x6d) { // 'T', 'm'
+				const after = out[i + 2];
+				if (after === undefined || after === SPACE || after === 0x09 || after === 0x0a || after === 0x0d) {
+					const nums = readNumbersBefore(out, i, 6, blockStart);
+					if (nums !== null && nums.length >= 6) {
+						txPos = nums[4] ?? txPos;
+						tyPos = nums[5] ?? tyPos;
+					}
+					blockStart = i + 2;
+					i += 2;
+					continue;
+				}
+			}
+
+			// Check for Td or TD operator (2 numbers): tx ty Td
+			if (b === 0x54 && (out[i + 1] === 0x64 || out[i + 1] === 0x44)) { // 'T','d' or 'T','D'
+				const after = out[i + 2];
+				if (after === undefined || after === SPACE || after === 0x09 || after === 0x0a || after === 0x0d) {
+					const nums = readNumbersBefore(out, i, 2, blockStart);
+					if (nums !== null && nums.length >= 2) {
+						txPos += nums[0] ?? 0;
+						tyPos += nums[1] ?? 0;
+					}
+					blockStart = i + 2;
+					i += 2;
+					continue;
+				}
+			}
+
+			// Check for T* operator (moves to next line) — equivalent to (0, -leading) Td
+			// We don't know leading without parsing TL, so just leave position unchanged
+			if (matchOp2(out, i, 0x54, 0x2a)) { // 'T', '*'
+				blockStart = i + 2;
+				i += 2;
+				continue;
+			}
+
+			// Check for literal string (…) — Tj or similar operator follows
+			if (b === LPAREN) {
+				// Check if current position is within region
+				const inRegion =
+					txPos >= region.xMin - POSITION_MARGIN &&
+					txPos <= region.xMax + POSITION_MARGIN &&
+					tyPos >= region.yMin - POSITION_MARGIN &&
+					tyPos <= region.yMax + POSITION_MARGIN;
+
+				// Find the end of this string
+				let depth = 1;
+				let j = i + 1;
+				while (j < len && depth > 0) {
+					if (out[j] === BACKSLASH) { j += 2; continue; }
+					if (out[j] === LPAREN) depth++;
+					else if (out[j] === RPAREN) depth--;
+					j++;
+				}
+
+				if (inRegion) {
+					// Blank the string content
+					for (let k = i + 1; k < j - 1; k++) {
+						out[k] = SPACE;
+					}
+				}
+
+				i = j;
+				continue;
+			}
+
+			// Check for hex string <…> — TJ or Tj operator follows
+			if (b === LANGLE && out[i + 1] !== LANGLE) {
+				// Check if current position is within region
+				const inRegion =
+					txPos >= region.xMin - POSITION_MARGIN &&
+					txPos <= region.xMax + POSITION_MARGIN &&
+					tyPos >= region.yMin - POSITION_MARGIN &&
+					tyPos <= region.yMax + POSITION_MARGIN;
+
+				let j = i + 1;
+				while (j < len && out[j] !== RANGLE) j++;
+
+				if (inRegion) {
+					for (let k = i + 1; k < j; k++) {
+						out[k] = 0x30; // '0'
+					}
+				}
+
+				i = j + 1;
+				continue;
+			}
+		}
+
+		i++;
+	}
+
+	return out;
+}
+
 /**
  * Decompress a Uint8Array using the Node.js built-in zlib inflate.
  * Returns the decompressed bytes or throws on failure.

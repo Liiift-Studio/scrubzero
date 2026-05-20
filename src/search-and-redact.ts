@@ -12,12 +12,14 @@ import { redact } from './redact.js';
 /**
  * Extract all text items from every page of a PDF using pdfjs-dist.
  * Returns a flat array of TextItem objects with page numbers.
+ * Text item transforms from pdfjs are in PDF bottom-left coordinate space.
  */
 async function extractAllTextItems(pdf: ArrayBuffer): Promise<TextItem[]> {
 	const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
+	// Copy the buffer before passing to pdfjs — pdfjs may transfer (neuter) the source buffer
 	const loadingTask = pdfjsLib.getDocument({
-		data: new Uint8Array(pdf),
+		data: new Uint8Array(pdf.slice(0)),
 		useWorkerFetch: false,
 		isEvalSupported: false,
 		useSystemFonts: true,
@@ -30,8 +32,6 @@ async function extractAllTextItems(pdf: ArrayBuffer): Promise<TextItem[]> {
 
 	for (let pageNum = 1; pageNum <= numPages; pageNum++) {
 		const page = await pdfDoc.getPage(pageNum);
-		const viewport = page.getViewport({ scale: 1 });
-		const pageHeight = viewport.height;
 
 		const textContent = await page.getTextContent();
 
@@ -39,10 +39,11 @@ async function extractAllTextItems(pdf: ArrayBuffer): Promise<TextItem[]> {
 			if (!('str' in item)) continue;
 			if (!item.str || item.str.trim() === '') continue;
 
+			// item.transform is [a, b, c, d, e, f]; e=x, f=y in PDF bottom-left space
 			const [, , , , tx, ty] = item.transform;
 			const x = tx;
-			// pdfjs returns y in viewport top-left space; convert to PDF bottom-left
-			const y = pageHeight - ty - (item.height ?? 0);
+			// pdfjs text transforms are in PDF bottom-left coordinate space — use directly
+			const y = ty;
 
 			allItems.push({
 				str: item.str,
@@ -105,7 +106,7 @@ function buildPageTextGroups(allItems: TextItem[]): PageTextGroup[] {
 
 	for (const [page, items] of byPage.entries()) {
 		// Sort by reading order: top-to-bottom, left-to-right
-		// pdfjs y is already in bottom-left space so higher y = higher on page
+		// y is in bottom-left space so higher y = higher on page
 		const sorted = [...items].sort((a, b) => {
 			const yDiff = b.y - a.y;
 			if (Math.abs(yDiff) > 2) return yDiff; // different lines
@@ -164,6 +165,7 @@ function findItemsForRange(
  * covers their bounding box on the page.
  * pageHeight is needed to convert from bottom-left PDF space back to
  * the top-left space that RedactionRegion uses.
+ * Items have y = bottom of glyph in bottom-left space; y + height = top.
  */
 function itemsToRegion(
 	items: TextItem[],
@@ -171,9 +173,9 @@ function itemsToRegion(
 	pattern: SearchPattern,
 ): RedactionRegion {
 	let xMin = Infinity;
-	let yMin = Infinity;
+	let yMin = Infinity; // bottom of text group in bottom-left space
 	let xMax = -Infinity;
-	let yMax = -Infinity;
+	let yMax = -Infinity; // top of text group in bottom-left space
 
 	for (const item of items) {
 		xMin = Math.min(xMin, item.x);
@@ -191,7 +193,9 @@ function itemsToRegion(
 
 	const page = items[0]!.page;
 
-	// Convert back to top-left origin for RedactionRegion
+	// Convert from bottom-left space to top-left space for RedactionRegion.
+	// yMax is the top of the text in bottom-left space, so pageHeight - yMax
+	// gives the distance from the top of the page.
 	const topLeftY = pageHeight - yMax;
 
 	const region: RedactionRegion = {
@@ -234,7 +238,7 @@ export async function searchAndRedact(
 	// Get page heights for coordinate conversion
 	const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
 	const loadingTask = pdfjsLib.getDocument({
-		data: new Uint8Array(pdf),
+		data: new Uint8Array(pdf.slice(0)),
 		useWorkerFetch: false,
 		isEvalSupported: false,
 		useSystemFonts: true,
@@ -254,6 +258,11 @@ export async function searchAndRedact(
 	const allRegions: RedactionRegion[] = [];
 
 	for (const pattern of patterns) {
+		// PHI detector mode — skip regex matching, use detector function
+		if (pattern.phiDetector !== undefined) {
+			continue; // PHI detectors are handled separately by redactWithPHIDetector
+		}
+
 		const re = buildRegExp(pattern.pattern);
 
 		for (const group of pageGroups) {
@@ -286,5 +295,65 @@ export async function searchAndRedact(
 	}
 
 	// Pass the discovered regions to the core redact function
+	return redact(pdf, allRegions, options);
+}
+
+/**
+ * Redact PHI using a custom detector function.
+ * The detector receives page text and returns bounding boxes of PHI regions.
+ * Bounding box coordinates should be in PDF user-space units (top-left origin).
+ */
+export async function redactWithPHIDetector(
+	pdf: ArrayBuffer,
+	detector: (
+		text: string,
+		pageNum: number,
+	) => Promise<
+		Array<{ text: string; x: number; y: number; width: number; height: number }>
+	>,
+	options?: RedactOptions,
+): Promise<RedactResult> {
+	const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
+	const loadingTask = pdfjsLib.getDocument({
+		data: new Uint8Array(pdf.slice(0)),
+		useWorkerFetch: false,
+		isEvalSupported: false,
+		useSystemFonts: true,
+		disableFontFace: true,
+	});
+
+	const pdfDoc = await loadingTask.promise;
+	const numPages = pdfDoc.numPages;
+	const allRegions: RedactionRegion[] = [];
+
+	for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+		const page = await pdfDoc.getPage(pageNum);
+		const textContent = await page.getTextContent();
+
+		// Build plain page text for the detector
+		const pageText = textContent.items
+			.filter((item) => 'str' in item)
+			.map((item) => ('str' in item ? item.str : ''))
+			.join(' ');
+
+		page.cleanup();
+
+		// Call the detector with page text
+		const detections = await detector(pageText, pageNum);
+
+		for (const det of detections) {
+			allRegions.push({
+				page: pageNum,
+				x: det.x,
+				y: det.y,
+				width: det.width,
+				height: det.height,
+			});
+		}
+	}
+
+	await pdfDoc.destroy();
+
 	return redact(pdf, allRegions, options);
 }

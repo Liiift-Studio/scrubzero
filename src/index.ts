@@ -1,11 +1,24 @@
 // Public API surface for pdf-redact
 
 export { redact } from './redact.js';
-export { searchAndRedact } from './search-and-redact.js';
+export { searchAndRedact, redactWithPHIDetector } from './search-and-redact.js';
+export { redactBatch } from './batch.js';
+export { redactEntities, EntityPatterns } from './entity-patterns.js';
+export { verify } from './verify.js';
 
 export type {
 	RedactionRegion,
 	SearchPattern,
 	RedactOptions,
 	RedactResult,
+	RedactionManifest,
+	RedactionEntry,
+	NormalizedRegion,
+	TextItem,
 } from './types.js';
+
+export type { BatchItem, BatchResult } from './batch.js';
+
+export type { EntityType, EntityPattern } from './entity-patterns.js';
+
+export type { VerificationResult, VerificationViolation } from './verify.js';
