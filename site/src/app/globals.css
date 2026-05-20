@@ -2,6 +2,11 @@
 @import "./base.css";
 
 :root {
-	--background: hsl(150, 18%, 8%);
-	--btn-bg: hsl(150, 12%, 16%);
+	--background: #f2ede3;
+	--foreground: #111111;
+	--rule: rgba(17, 17, 17, 0.1);
+	--ink-dim: rgba(17, 17, 17, 0.45);
+	--code-bg: rgba(17, 17, 17, 0.06);
+	--btn-bg: #111111;
+	--btn-fg: #f2ede3;
 }

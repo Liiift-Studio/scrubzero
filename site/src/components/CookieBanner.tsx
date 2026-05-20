@@ -27,22 +27,23 @@ export function CookieBanner() {
 	}
 
 	return (
-		<div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10" style={{ background: "var(--background)" }}>
-			<div className="max-w-5xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-sm">
-				<p className="opacity-50 leading-relaxed">
+		<div className="fixed bottom-0 left-0 right-0 z-50 border-t border-black/10" style={{ background: "var(--background)" }}>
+			<div className="max-w-2xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-sm">
+				<p className="text-xs leading-relaxed" style={{ color: "var(--ink-dim)" }}>
 					We use anonymous analytics to understand usage. No personal data is collected or sold.
 				</p>
 				<div className="flex gap-3 shrink-0">
 					<button
 						onClick={() => respond("denied")}
-						className="text-sm opacity-40 hover:opacity-70 transition-opacity px-2"
+						className="text-xs transition-opacity hover:opacity-60 px-2"
+						style={{ color: "var(--ink-dim)" }}
 					>
 						Decline
 					</button>
 					<button
 						onClick={() => respond("granted")}
-						className="text-sm px-4 py-1.5 rounded-lg transition-colors"
-						style={{ background: "var(--btn-bg)" }}
+						className="text-xs px-4 py-1.5 rounded transition-opacity hover:opacity-80"
+						style={{ background: "var(--btn-bg)", color: "var(--btn-fg)" }}
 					>
 						Accept
 					</button>

@@ -1,4 +1,4 @@
-// OG image for pdf-redact — 1200×630 with Merriweather heading.
+// OG image for pdf-redact — 1200×630, legal/classified theme.
 import { ImageResponse } from "next/og"
 import { readFileSync } from "fs"
 import { join } from "path"
@@ -14,26 +14,31 @@ export default function Image() {
 		(
 			<div
 				style={{
-					background: "hsl(150, 18%, 8%)",
+					background: "#f2ede3",
 					width: "100%",
 					height: "100%",
 					display: "flex",
 					flexDirection: "column",
-					padding: "80px",
+					padding: "72px 80px",
 					justifyContent: "space-between",
-					color: "#f0ece3",
+					color: "#111111",
 				}}
 			>
-				<div style={{ display: "flex", alignItems: "center" }}>
-					<span style={{ fontSize: "13px", letterSpacing: "0.2em", opacity: 0.4, textTransform: "uppercase", fontFamily: "sans-serif" }}>
-						pdf-redact
+				{/* Masthead */}
+				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #111111", paddingBottom: "16px" }}>
+					<span style={{ fontSize: "13px", letterSpacing: "0.22em", textTransform: "uppercase", fontFamily: "sans-serif" }}>
+						PDF-REDACT
 					</span>
+					<span style={{ fontSize: "13px", opacity: 0.4, fontFamily: "monospace" }}>liiift.studio</span>
 				</div>
 
-				<div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+				{/* Hero */}
+				<div style={{ display: "flex", flexDirection: "column", gap: "0px" }}>
+					{/* Redaction bar motif */}
+					<div style={{ height: "22px", background: "#111111", width: "100%", marginBottom: "32px" }} />
 					<div
 						style={{
-							fontSize: "88px",
+							fontSize: "86px",
 							fontFamily: "Merriweather",
 							fontWeight: 300,
 							lineHeight: "1.05",
@@ -41,18 +46,17 @@ export default function Image() {
 					>
 						True PDF
 						<br />
-						<span style={{ opacity: 0.42, fontStyle: "italic" }}>redaction.</span>
+						<span style={{ fontStyle: "italic", opacity: 0.5 }}>redaction.</span>
 					</div>
-					<p style={{ fontSize: "22px", opacity: 0.5, margin: 0, lineHeight: "1.5", fontFamily: "sans-serif" }}>
+					<p style={{ fontSize: "21px", opacity: 0.5, margin: "28px 0 0", lineHeight: "1.5", fontFamily: "sans-serif" }}>
 						Removes text from content streams before drawing the bar.
-						<br />
 						No hidden layers. No recoverable text. Node.js and Lambda.
 					</p>
 				</div>
 
-				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-					<span style={{ fontSize: "14px", opacity: 0.35, fontFamily: "sans-serif" }}>liiift.studio</span>
-					<span style={{ fontSize: "14px", opacity: 0.25, fontFamily: "monospace" }}>npm install pdf-redact</span>
+				{/* Footer */}
+				<div style={{ display: "flex", justifyContent: "flex-end" }}>
+					<span style={{ fontSize: "14px", opacity: 0.35, fontFamily: "monospace" }}>npm install pdf-redact</span>
 				</div>
 			</div>
 		),

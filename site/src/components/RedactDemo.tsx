@@ -13,7 +13,7 @@ export default function RedactDemo() {
 	const [state, setState] = useState<State>({ status: "idle" })
 	const [isDragging, setIsDragging] = useState(false)
 	const [file, setFile] = useState<File | null>(null)
-	const [color, setColor] = useState("#000000")
+	const [color, setColor] = useState("#111111")
 	const inputRef = useRef<HTMLInputElement>(null)
 
 	const handleFiles = useCallback((files: FileList | null) => {
@@ -53,7 +53,6 @@ export default function RedactDemo() {
 			if (!res.ok || data.error) {
 				setState({ status: "error", message: data.error ?? "Redaction failed" })
 			} else {
-				// Convert base64 back to a Blob for download.
 				const bytes = Uint8Array.from(atob(data.pdf!), c => c.charCodeAt(0))
 				const blob = new Blob([bytes], { type: "application/pdf" })
 				setState({
@@ -80,15 +79,15 @@ export default function RedactDemo() {
 	}, [state])
 
 	return (
-		<form onSubmit={handleSubmit} className="flex flex-col gap-6">
+		<form onSubmit={handleSubmit} className="flex flex-col gap-8">
 			{/* Step 1 — drop zone */}
-			<div className="flex flex-col gap-2">
-				<p className="text-xs uppercase tracking-widest opacity-40">1. Upload PDF</p>
+			<div className="flex flex-col gap-3">
+				<p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--ink-dim)" }}>01 — Upload PDF</p>
 				<label
 					className={`
-						flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-8 py-10
+						flex flex-col items-center justify-center gap-3 rounded border-2 border-dashed px-8 py-10
 						cursor-pointer transition-colors
-						${isDragging ? "border-white/50 bg-white/8" : "border-white/15 hover:border-white/30 hover:bg-white/4"}
+						${isDragging ? "border-black/40 bg-black/5" : "border-black/15 hover:border-black/25 hover:bg-black/3"}
 					`}
 					onDragOver={onDragOver}
 					onDragLeave={onDragLeave}
@@ -103,50 +102,55 @@ export default function RedactDemo() {
 					/>
 					{file ? (
 						<>
-							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-emerald-400">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="opacity-60">
 								<path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
 								<circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
 							</svg>
 							<p className="text-sm font-medium">{file.name}</p>
-							<p className="text-xs opacity-30">{(file.size / 1024).toFixed(0)} KB · click to replace</p>
+							<p className="text-xs" style={{ color: "var(--ink-dim)" }}>{(file.size / 1024).toFixed(0)} KB · click to replace</p>
 						</>
 					) : (
 						<>
-							<svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="opacity-40">
+							<svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="opacity-25">
 								<path d="M14 5v12M14 5l-4 4M14 5l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
 								<path d="M5 19v2a2 2 0 002 2h14a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
 							</svg>
-							<p className="text-sm opacity-60">Drop a PDF here, or <span className="opacity-100 underline underline-offset-2">browse</span></p>
-							<p className="text-xs opacity-30">Max 4 MB</p>
+							<p className="text-sm" style={{ color: "var(--ink-dim)" }}>
+								Drop a PDF here, or <span className="underline underline-offset-2" style={{ color: "var(--foreground)" }}>browse</span>
+							</p>
+							<p className="text-xs" style={{ color: "var(--ink-dim)", opacity: 0.5 }}>Max 4 MB</p>
 						</>
 					)}
 				</label>
 			</div>
 
 			{/* Step 2 — pattern */}
-			<div className="flex flex-col gap-2">
-				<p className="text-xs uppercase tracking-widest opacity-40">2. Search pattern</p>
+			<div className="flex flex-col gap-3">
+				<p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--ink-dim)" }}>02 — Search pattern</p>
 				<input
 					type="text"
 					name="pattern"
 					required
-					placeholder="e.g.  John Smith  or  /\d{3}-\d{2}-\d{4}/  for SSNs"
-					className="rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:opacity-30 focus:outline-none focus:border-white/30 transition-colors"
+					placeholder={`e.g.  John Smith  or  /\\d{3}-\\d{2}-\\d{4}/  for SSNs`}
+					className="rounded border border-black/15 px-4 py-3 text-sm focus:outline-none focus:border-black/35 transition-colors"
+					style={{ background: "var(--code-bg)" }}
 				/>
-				<p className="text-xs opacity-30">Plain text or <code className="font-mono">/regex/flags</code> — all matches on every page will be redacted</p>
+				<p className="text-xs" style={{ color: "var(--ink-dim)" }}>
+					Plain text or <code className="font-mono text-xs bg-black/6 px-1 rounded">/regex/flags</code> — all matches on every page are redacted
+				</p>
 			</div>
 
 			{/* Step 3 — color */}
-			<div className="flex flex-col gap-2">
-				<p className="text-xs uppercase tracking-widest opacity-40">3. Bar color (optional)</p>
+			<div className="flex flex-col gap-3">
+				<p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--ink-dim)" }}>03 — Bar color</p>
 				<div className="flex items-center gap-3">
 					<input
 						type="color"
 						value={color}
 						onChange={e => setColor(e.target.value)}
-						className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0"
+						className="w-9 h-9 rounded cursor-pointer border border-black/15 p-0.5 bg-transparent"
 					/>
-					<span className="text-sm font-mono opacity-50">{color}</span>
+					<span className="text-sm font-mono" style={{ color: "var(--ink-dim)" }}>{color}</span>
 				</div>
 			</div>
 
@@ -154,11 +158,12 @@ export default function RedactDemo() {
 			<button
 				type="submit"
 				disabled={!file || state.status === "loading"}
-				className="rounded-lg px-5 py-3 text-sm font-medium transition-opacity bg-white/10 hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed"
+				className="self-start rounded px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+				style={{ background: "var(--btn-bg)", color: "var(--btn-fg)" }}
 			>
 				{state.status === "loading" ? (
-					<span className="flex items-center justify-center gap-2">
-						<span className="w-4 h-4 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+					<span className="flex items-center gap-2">
+						<span className="w-3.5 h-3.5 border-2 border-[var(--btn-fg)]/20 border-t-[var(--btn-fg)]/70 rounded-full animate-spin" />
 						Redacting…
 					</span>
 				) : "Redact PDF"}
@@ -166,28 +171,32 @@ export default function RedactDemo() {
 
 			{/* Error */}
 			{state.status === "error" && (
-				<div className="rounded-lg bg-red-950/50 border border-red-800/40 px-4 py-3 text-sm text-red-300">
+				<div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
 					{state.message}
 				</div>
 			)}
 
 			{/* Result */}
 			{state.status === "done" && (
-				<div className="flex flex-col gap-3 rounded-xl bg-emerald-950/40 border border-emerald-800/30 px-5 py-4">
+				<div className="flex flex-col gap-3 rounded border border-black/15 px-5 py-4 bg-black/3">
 					<div className="flex items-center gap-2">
-						<svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-emerald-400 shrink-0">
+						<svg width="15" height="15" viewBox="0 0 16 16" fill="none" className="shrink-0 opacity-60">
 							<circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4"/>
 							<path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
 						</svg>
-						<p className="text-sm text-emerald-300 font-medium">
+						<p className="text-sm font-medium">
 							{state.redactedCount} region{state.redactedCount !== 1 ? "s" : ""} redacted
-							{state.pagesAffected.length > 0 && ` on page${state.pagesAffected.length !== 1 ? "s" : ""} ${state.pagesAffected.join(", ")}`}
+							{state.pagesAffected.length > 0 && (
+								<span className="font-normal ml-1" style={{ color: "var(--ink-dim)" }}>
+									on page{state.pagesAffected.length !== 1 ? "s" : ""} {state.pagesAffected.join(", ")}
+								</span>
+							)}
 						</p>
 					</div>
 					<button
 						type="button"
 						onClick={downloadResult}
-						className="self-start rounded-lg bg-emerald-800/40 hover:bg-emerald-800/60 border border-emerald-700/40 px-4 py-2 text-sm text-emerald-300 transition-colors"
+						className="self-start rounded border border-black/15 px-4 py-2 text-sm transition-opacity hover:opacity-60"
 					>
 						Download redacted PDF
 					</button>

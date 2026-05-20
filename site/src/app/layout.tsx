@@ -1,10 +1,16 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import { Inter } from "next/font/google"
+import { Inter, Instrument_Serif } from "next/font/google"
 import { Analytics } from "@/components/Analytics"
 import { CookieBanner } from "@/components/CookieBanner"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
+const instrumentSerif = Instrument_Serif({
+	subsets: ["latin"],
+	weight: "400",
+	style: ["normal", "italic"],
+	variable: "--font-display",
+})
 
 export const metadata: Metadata = {
 	title: "pdf-redact — True PDF content-stream redaction",
@@ -14,7 +20,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: "pdf-redact — True PDF content-stream redaction",
 		description: "Removes text from content streams before drawing the bar. No hidden layers. Works in Node.js and Lambda.",
-		url: "https://vercel.com",
+		url: "https://pdf-redact.vercel.app",
 		siteName: "pdf-redact",
 		type: "website",
 	},
@@ -28,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
 	return (
-		<html lang="en" className={`h-full antialiased ${inter.variable}`}>
+		<html lang="en" className={`h-full ${inter.variable} ${instrumentSerif.variable}`}>
 			<body className="min-h-full flex flex-col">
 				{children}
 				<Analytics />
