@@ -10,7 +10,7 @@ import type {
 	RedactionManifest,
 	RedactionEntry,
 } from './types.js';
-import { removeTextOperatorsInRegion, inflate, deflate } from './content-stream.js';
+import { replaceTextInRegion, inflate, deflate } from './content-stream.js';
 
 /** Default redaction options */
 const DEFAULTS: Required<Omit<RedactOptions, 'redactorId' | 'basisCode'>> & {
@@ -206,7 +206,7 @@ async function scrubContentStream(
 
 			let modified = decompressed;
 			for (const region of regions) {
-				modified = removeTextOperatorsInRegion(modified, region);
+				modified = replaceTextInRegion(modified, region);
 			}
 
 			if (isFlate) {

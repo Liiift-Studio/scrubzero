@@ -38,22 +38,15 @@ export interface SearchPattern {
 	/** Optional label for redaction markers */
 	label?: string;
 	/**
-	 * PHI detector hook: an async function that takes page text and returns
-	 * bounding boxes of detected PHI regions. Integrates with AWS Comprehend Medical,
-	 * Azure Text Analytics, or custom NER models.
+	 * PHI detector hook: receives text items with their PDF coordinates and returns
+	 * bounding boxes of detected PHI regions in the same coordinate space (bottom-left
+	 * PDF origin). Integrates with AWS Comprehend Medical, Azure Text Analytics, or
+	 * custom NER models.
 	 */
 	phiDetector?: (
-		text: string,
+		items: Array<{ str: string; x: number; y: number; width: number; height: number }>,
 		pageNum: number,
-	) => Promise<
-		Array<{
-			text: string;
-			x: number;
-			y: number;
-			width: number;
-			height: number;
-		}>
-	>;
+	) => Promise<Array<{ x: number; y: number; width: number; height: number }>>;
 }
 
 /**
