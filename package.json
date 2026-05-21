@@ -44,7 +44,7 @@
     "type": "git",
     "url": "https://github.com/Liiift-Studio/pdf-redact"
   },
-  "homepage": "https://github.com/Liiift-Studio/pdf-redact#readme",
+  "homepage": "https://scrubzero.org",
   "engines": {
     "node": ">=18"
   },

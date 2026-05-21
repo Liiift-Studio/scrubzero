@@ -1,7 +1,7 @@
-// Sitemap for pdf-redact
+// Sitemap for scrubzero
 import type { MetadataRoute } from "next"
 
-const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pdf-redact.vercel.app"
+const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://scrubzero.org"
 
 export default function sitemap(): MetadataRoute.Sitemap {
 	return [

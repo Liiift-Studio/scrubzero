@@ -1,4 +1,4 @@
-// pdf-redact sandbox — live redaction demo.
+// scrubzero — live redaction demo.
 import RedactDemo from "@/components/RedactDemo"
 import CodeBlock from "@/components/CodeBlock"
 import CopyInstall from "@/components/CopyInstall"
@@ -24,7 +24,7 @@ export default function Home() {
 			{/* Document masthead */}
 			<header className="mb-16">
 				<div className="border-b-2 border-black pb-3 flex justify-between items-baseline">
-					<span className="text-xs uppercase tracking-[0.18em]">pdf-redact</span>
+					<span className="text-xs uppercase tracking-[0.18em]">scrubzero</span>
 					<span className="text-xs font-mono" style={{ color: "var(--ink-dim)" }}>v{version}</span>
 				</div>
 			</header>
@@ -43,11 +43,11 @@ export default function Home() {
 					<span style={{ fontStyle: "italic" }}>redaction.</span>
 				</h1>
 
-				{/* The redaction bar — what pdf-redact creates */}
+				{/* The redaction bar — what scrubzero creates */}
 				<div className="h-6 bg-black w-full mb-6" aria-hidden="true" />
 
 				<p className="text-base leading-relaxed mb-8" style={{ color: "var(--ink-dim)" }}>
-					pdf-redact removes text operators from the page content stream before drawing the visual bar.
+					scrubzero removes text operators from the page content stream before drawing the visual bar.
 					No hidden layers. No recoverable text. Designed for server-side use in Node.js and AWS Lambda.
 				</p>
 
@@ -83,7 +83,7 @@ export default function Home() {
 						{
 							n: "01",
 							label: "Content stream scrubbing",
-							body: "pdfjs-dist extracts text items with positions. For each match, pdf-redact locates the BT/ET block in the raw content stream bytes, finds the text-drawing operators, and blanks their string arguments. The glyph data is gone before the bar is drawn.",
+							body: "pdfjs-dist extracts text items with positions. For each match, scrubzero locates the BT/ET block in the raw content stream bytes, finds the text-drawing operators, and blanks their string arguments. The glyph data is gone before the bar is drawn.",
 						},
 						{
 							n: "02",

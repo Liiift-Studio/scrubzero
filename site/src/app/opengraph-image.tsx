@@ -1,9 +1,9 @@
-// OG image for pdf-redact — 1200×630, legal/classified theme.
+// OG image for scrubzero — 1200×630, legal/classified theme.
 import { ImageResponse } from "next/og"
 import { readFileSync } from "fs"
 import { join } from "path"
 
-export const alt = "pdf-redact — True PDF content-stream redaction"
+export const alt = "scrubzero — True PDF content-stream redaction"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -27,9 +27,9 @@ export default function Image() {
 				{/* Masthead */}
 				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #111111", paddingBottom: "16px" }}>
 					<span style={{ fontSize: "13px", letterSpacing: "0.22em", textTransform: "uppercase", fontFamily: "sans-serif" }}>
-						PDF-REDACT
+						SCRUBZERO
 					</span>
-					<span style={{ fontSize: "13px", opacity: 0.4, fontFamily: "monospace" }}>liiift.studio</span>
+					<span style={{ fontSize: "13px", opacity: 0.4, fontFamily: "monospace" }}>scrubzero.org</span>
 				</div>
 
 				{/* Hero */}

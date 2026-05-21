@@ -13,23 +13,23 @@ const instrumentSerif = Instrument_Serif({
 })
 
 export const metadata: Metadata = {
-	title: "pdf-redact — True PDF content-stream redaction",
+	title: "scrubzero — True PDF content-stream redaction",
 	icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icon.svg" },
-	description: "pdf-redact removes text from PDF content streams before drawing the visual bar — no hidden layers, no recoverable text. Designed for Node.js and AWS Lambda.",
-	keywords: ["pdf redaction", "pdf-lib", "pdfjs", "content stream", "Node.js pdf", "FOIA redaction", "npm"],
+	description: "scrubzero removes text from PDF content streams before drawing the visual bar — no hidden layers, no recoverable text. Designed for Node.js and AWS Lambda.",
+	keywords: ["scrubzero", "pdf redaction", "pdf-lib", "pdfjs", "content stream", "Node.js pdf", "FOIA redaction", "npm"],
 	openGraph: {
-		title: "pdf-redact — True PDF content-stream redaction",
+		title: "scrubzero — True PDF content-stream redaction",
 		description: "Removes text from content streams before drawing the bar. No hidden layers. Works in Node.js and Lambda.",
-		url: "https://pdf-redact.vercel.app",
-		siteName: "pdf-redact",
+		url: "https://scrubzero.org",
+		siteName: "scrubzero",
 		type: "website",
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "pdf-redact — True PDF content-stream redaction",
+		title: "scrubzero — True PDF content-stream redaction",
 		description: "Removes text from content streams before drawing the bar. No hidden layers.",
 	},
-	metadataBase: new URL("https://pdf-redact.vercel.app"),
+	metadataBase: new URL("https://scrubzero.org"),
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
