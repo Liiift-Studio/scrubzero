@@ -25,8 +25,7 @@ const result = await redact(pdfBytes.buffer, [
     y: 200,
     width: 300,
     height: 20,
-    color: [0, 0, 0],   // black bar
-    label: 'REDACTED',
+    color: [0, 0, 0],
   },
 ]);
 await writeFile('output.pdf', result.pdf);
@@ -34,11 +33,28 @@ console.log(`Redacted ${result.redactedCount} region(s) on pages ${result.pagesA
 
 // --- Search and redact by pattern ---
 const result2 = await searchAndRedact(pdfBytes.buffer, [
-  { pattern: /\b\d{3}-\d{2}-\d{4}\b/g },           // Social Security Numbers
-  { pattern: /\b[\w.]+@[\w.]+\.\w{2,}\b/g },        // Email addresses
-  { pattern: 'John Smith', color: [0.8, 0, 0] },    // Literal string, red bar
+  { pattern: /\b\d{3}-\d{2}-\d{4}\b/g },            // Social Security Numbers
+  { pattern: /\b[\w.]+@[\w.]+\.\w{2,}\b/g },         // Email addresses
+  { pattern: 'John Smith', color: [0.8, 0, 0] },     // Literal string, red bar
 ]);
 await writeFile('output-search.pdf', result2.pdf);
+```
+
+## CLI
+
+```bash
+# Search and redact by pattern (plain text or /regex/)
+npx pdf-redact search input.pdf "John Smith" --output redacted.pdf
+npx pdf-redact search input.pdf "/\d{3}-\d{2}-\d{4}/" --output redacted.pdf
+
+# Redact built-in entity types
+npx pdf-redact entities input.pdf --types ssn,email,phone --output redacted.pdf
+
+# Verify a redacted PDF has no text under visual bars
+npx pdf-redact verify redacted.pdf
+
+# Redact a specific region by coordinates
+npx pdf-redact redact input.pdf '[{"page":1,"x":100,"y":200,"width":300,"height":20}]' --output out.pdf
 ```
 
 ## Why not overlays?
@@ -66,12 +82,13 @@ async function redact(
 | Field | Type | Description |
 |-------|------|-------------|
 | `page` | `number` | 1-indexed page number |
-| `x` | `number` | Left edge of the region in PDF units (points), from the left of the page |
-| `y` | `number` | Top edge of the region in PDF units, from the top of the page |
-| `width` | `number` | Width of the region in PDF units |
-| `height` | `number` | Height of the region in PDF units |
+| `x` | `number` | Left edge of the region in PDF points, from the left of the page |
+| `y` | `number` | Top edge of the region in PDF points, from the top of the page |
+| `width` | `number` | Width of the region in PDF points |
+| `height` | `number` | Height of the region in PDF points |
 | `color` | `[number, number, number]` | RGB fill color, each channel 0–1. Default: `[0, 0, 0]` (black) |
 | `label` | `string` | Optional label rendered inside the bar when `addRedactionMarkers` is true |
+| `exemptionCode` | `string` | FOIA exemption code (e.g. `"6"`, `"7(C)"`) |
 
 ---
 
@@ -95,6 +112,107 @@ async function searchAndRedact(
 | `pages` | `number[]` | Limit to specific 1-indexed page numbers. Default: all pages |
 | `color` | `[number, number, number]` | RGB fill color for matched bars. Default: `[0, 0, 0]` |
 | `label` | `string` | Optional label for redaction markers |
+| `phiDetector` | `function` | Custom PHI detection hook — see below |
+
+#### PHI detector hook
+
+Integrate with AWS Comprehend Medical, Azure Text Analytics, or a custom NER model:
+
+```typescript
+const result = await searchAndRedact(pdfBytes.buffer, [
+  {
+    pattern: '', // unused when phiDetector is set
+    phiDetector: async (items, pageNum) => {
+      // items: Array<{ str, x, y, width, height }> — text items with PDF coordinates
+      // Return bounding boxes of detected PHI in the same coordinate space
+      const detections = await myNERModel(items.map(i => i.str).join(' '));
+      return detections.map(d => ({
+        x: d.boundingBox.x,
+        y: d.boundingBox.y,
+        width: d.boundingBox.width,
+        height: d.boundingBox.height,
+      }));
+    },
+  },
+]);
+```
+
+---
+
+### `redactEntities(pdf, types?, options?)`
+
+Redact built-in entity types using pre-built regex patterns.
+
+```typescript
+import { redactEntities, EntityPatterns } from 'pdf-redact';
+
+const result = await redactEntities(pdfBytes.buffer, ['ssn', 'email', 'phone']);
+```
+
+Available entity types: `ssn`, `phone`, `email`, `credit-card`, `ip-address`, `date`, `name`, `attorney-client-marker`
+
+---
+
+### `redactBatch(items, concurrency?)`
+
+Process multiple PDFs concurrently with per-item error isolation.
+
+```typescript
+import { redactBatch } from 'pdf-redact';
+
+const results = await redactBatch([
+  { pdf: pdf1.buffer, patterns: [{ pattern: /SSN:\s*\d{3}-\d{2}-\d{4}/g }] },
+  { pdf: pdf2.buffer, regions: [{ page: 1, x: 50, y: 100, width: 200, height: 20 }] },
+], 4); // concurrency limit
+
+for (const r of results) {
+  if (r.error) console.error(`Item ${r.index} failed:`, r.error.message);
+  else await writeFile(`output-${r.index}.pdf`, r.result!.pdf);
+}
+```
+
+---
+
+### `redactWithPHIDetector(pdf, detector, options?)`
+
+Redact PHI using a standalone detector function. The detector receives text items with their PDF coordinates (bottom-left origin) and returns bounding boxes to redact.
+
+```typescript
+import { redactWithPHIDetector } from 'pdf-redact';
+
+const result = await redactWithPHIDetector(
+  pdfBytes.buffer,
+  async (items, pageNum) => {
+    // items: Array<{ str, x, y, width, height }>
+    // Return regions to redact in the same coordinate space
+    return items
+      .filter(item => looksLikePHI(item.str))
+      .map(item => ({ x: item.x, y: item.y, width: item.width, height: item.height }));
+  },
+);
+```
+
+---
+
+### `verify(pdf)`
+
+Verify that a redacted PDF has no text remaining beneath its visual redaction bars.
+
+```typescript
+import { verify } from 'pdf-redact';
+
+const result = await verify(redactedPdf.buffer);
+console.log(result.clean);       // true if no text found under any bar
+console.log(result.violations);  // VerificationViolation[]
+```
+
+```typescript
+interface VerificationViolation {
+  page: number;
+  bbox: [number, number, number, number];
+  recoveredText: string;
+}
+```
 
 ---
 
@@ -105,6 +223,9 @@ async function searchAndRedact(
 | `flattenAnnotations` | `boolean` | `true` | Flatten existing annotations before redacting |
 | `sanitizeMetadata` | `boolean` | `true` | Wipe DocInfo dictionary fields and XMP metadata stream |
 | `addRedactionMarkers` | `boolean` | `false` | Render a visible label (e.g. `REDACTED`) inside each bar |
+| `generateManifest` | `boolean` | `false` | Attach a structured audit manifest to the result |
+| `redactorId` | `string` | — | Operator identifier recorded in the manifest |
+| `basisCode` | `string` | — | FOIA or other exemption code recorded in the manifest |
 
 ---
 
@@ -115,6 +236,7 @@ async function searchAndRedact(
 | `pdf` | `Uint8Array` | The redacted PDF bytes, ready to write to disk or stream |
 | `redactedCount` | `number` | Total number of regions redacted |
 | `pagesAffected` | `number[]` | Sorted 1-indexed list of pages that had at least one redaction |
+| `manifest` | `RedactionManifest` | Audit manifest — present when `generateManifest: true` |
 
 ---
 
@@ -123,26 +245,6 @@ async function searchAndRedact(
 `pdf-redact` targets Node.js >=18 and has no native binary dependencies. It ships as dual ESM + CJS so it works in both `"type": "module"` packages and CommonJS environments.
 
 On AWS Lambda, deploy as-is — no additional configuration needed. The package uses Node.js built-in `zlib` for PDF stream decompression rather than native addons.
-
-## Verifying redactions
-
-To confirm that redacted text is genuinely absent from the output file:
-
-```bash
-# Extract text from the redacted PDF
-pdftotext output.pdf - | grep "sensitive term"
-
-# Or with Node.js
-node -e "
-  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const doc = await getDocument({ data: fs.readFileSync('output.pdf') }).promise;
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    console.log(content.items.map(i => i.str).join(' '));
-  }
-"
-```
 
 ## License
 
