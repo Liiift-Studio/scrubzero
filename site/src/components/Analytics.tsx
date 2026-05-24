@@ -30,7 +30,7 @@ export function Analytics() {
 				gtag('js', new Date());
 				gtag('config', '${GA_ID}');
 				try {
-					if (localStorage.getItem('analytics-consent') === 'granted') {
+					if (localStorage.getItem('cookie-consent') === 'granted') {
 						gtag('consent', 'update', { analytics_storage: 'granted' });
 					}
 				} catch {}

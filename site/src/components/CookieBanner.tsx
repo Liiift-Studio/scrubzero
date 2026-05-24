@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 
-const STORAGE_KEY = "analytics-consent"
+const STORAGE_KEY = "cookie-consent"
 
 export function CookieBanner() {
 	const [visible, setVisible] = useState(false)
