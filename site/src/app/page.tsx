@@ -53,11 +53,19 @@ export default function Home() {
 
 				<div className="flex flex-wrap items-center gap-4">
 					<CopyInstall pkg="pdf-redact" />
-					<a href="https://github.com/Liiift-Studio/pdf-redact" className="text-sm transition-opacity hover:opacity-60" style={{ color: "var(--ink-dim)" }}>
-						GitHub →
+					<a
+						href="https://npmjs.com/package/pdf-redact"
+						className="text-xs font-medium px-4 py-2 rounded-full transition-colors"
+						style={{ background: "var(--btn-bg)", color: "var(--btn-fg)" }}
+					>
+						npm
 					</a>
-					<a href="https://npmjs.com/package/pdf-redact" className="text-sm transition-opacity hover:opacity-60" style={{ color: "var(--ink-dim)" }}>
-						npm →
+					<a
+						href="https://github.com/Liiift-Studio/pdf-redact"
+						className="text-xs px-4 py-2 rounded-full border transition-colors opacity-70 hover:opacity-100"
+						style={{ borderColor: "var(--rule)" }}
+					>
+						GitHub
 					</a>
 				</div>
 			</section>
