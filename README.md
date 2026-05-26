@@ -7,14 +7,14 @@ Unlike overlay-only tools that paint a black rectangle on top of text (which can
 ## Install
 
 ```bash
-npm install pdf-redact
+npm install @liiift-studio/pdf-redact
 ```
 
 ## Quick start
 
 ```typescript
 import { readFile, writeFile } from 'node:fs/promises';
-import { redact, searchAndRedact } from 'pdf-redact';
+import { redact, searchAndRedact } from '@liiift-studio/pdf-redact';
 
 // --- Redact a known region ---
 const pdfBytes = await readFile('input.pdf');
@@ -44,17 +44,17 @@ await writeFile('output-search.pdf', result2.pdf);
 
 ```bash
 # Search and redact by pattern (plain text or /regex/)
-npx pdf-redact search input.pdf "John Smith" --output redacted.pdf
-npx pdf-redact search input.pdf "/\d{3}-\d{2}-\d{4}/" --output redacted.pdf
+npx @liiift-studio/pdf-redact search input.pdf "John Smith" --output redacted.pdf
+npx @liiift-studio/pdf-redact search input.pdf "/\d{3}-\d{2}-\d{4}/" --output redacted.pdf
 
 # Redact built-in entity types
-npx pdf-redact entities input.pdf --types ssn,email,phone --output redacted.pdf
+npx @liiift-studio/pdf-redact entities input.pdf --types ssn,email,phone --output redacted.pdf
 
 # Verify a redacted PDF has no text under visual bars
-npx pdf-redact verify redacted.pdf
+npx @liiift-studio/pdf-redact verify redacted.pdf
 
 # Redact a specific region by coordinates
-npx pdf-redact redact input.pdf '[{"page":1,"x":100,"y":200,"width":300,"height":20}]' --output out.pdf
+npx @liiift-studio/pdf-redact redact input.pdf '[{"page":1,"x":100,"y":200,"width":300,"height":20}]' --output out.pdf
 ```
 
 ## Why not overlays?
@@ -144,7 +144,7 @@ const result = await searchAndRedact(pdfBytes.buffer, [
 Redact built-in entity types using pre-built regex patterns.
 
 ```typescript
-import { redactEntities, EntityPatterns } from 'pdf-redact';
+import { redactEntities, EntityPatterns } from '@liiift-studio/pdf-redact';
 
 const result = await redactEntities(pdfBytes.buffer, ['ssn', 'email', 'phone']);
 ```
@@ -158,7 +158,7 @@ Available entity types: `ssn`, `phone`, `email`, `credit-card`, `ip-address`, `d
 Process multiple PDFs concurrently with per-item error isolation.
 
 ```typescript
-import { redactBatch } from 'pdf-redact';
+import { redactBatch } from '@liiift-studio/pdf-redact';
 
 const results = await redactBatch([
   { pdf: pdf1.buffer, patterns: [{ pattern: /SSN:\s*\d{3}-\d{2}-\d{4}/g }] },
@@ -178,7 +178,7 @@ for (const r of results) {
 Redact PHI using a standalone detector function. The detector receives text items with their PDF coordinates (bottom-left origin) and returns bounding boxes to redact.
 
 ```typescript
-import { redactWithPHIDetector } from 'pdf-redact';
+import { redactWithPHIDetector } from '@liiift-studio/pdf-redact';
 
 const result = await redactWithPHIDetector(
   pdfBytes.buffer,
@@ -199,7 +199,7 @@ const result = await redactWithPHIDetector(
 Verify that a redacted PDF has no text remaining beneath its visual redaction bars.
 
 ```typescript
-import { verify } from 'pdf-redact';
+import { verify } from '@liiift-studio/pdf-redact';
 
 const result = await verify(redactedPdf.buffer);
 console.log(result.clean);       // true if no text found under any bar

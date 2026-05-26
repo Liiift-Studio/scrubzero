@@ -56,7 +56,7 @@ export default function Image() {
 
 				{/* Footer */}
 				<div style={{ display: "flex", justifyContent: "flex-end" }}>
-					<span style={{ fontSize: "14px", opacity: 0.35, fontFamily: "monospace" }}>npm install pdf-redact</span>
+					<span style={{ fontSize: "14px", opacity: 0.35, fontFamily: "monospace" }}>npm install @liiift-studio/pdf-redact</span>
 				</div>
 			</div>
 		),

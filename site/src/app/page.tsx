@@ -52,9 +52,9 @@ export default function Home() {
 				</p>
 
 				<div className="flex flex-wrap items-center gap-4">
-					<CopyInstall pkg="pdf-redact" />
+					<CopyInstall pkg="@liiift-studio/pdf-redact" />
 					<a
-						href="https://npmjs.com/package/pdf-redact"
+						href="https://npmjs.com/package/@liiift-studio/pdf-redact"
 						className="text-xs font-medium px-4 py-2 rounded-full transition-colors"
 						style={{ background: "var(--btn-bg)", color: "var(--btn-fg)" }}
 					>
@@ -128,7 +128,7 @@ export default function Home() {
 				<div className="flex flex-col gap-10">
 					<div className="flex flex-col gap-3">
 						<p className="text-xs" style={{ color: "var(--ink-dim)" }}>Search and redact by text pattern</p>
-						<CodeBlock code={`import { searchAndRedact } from 'pdf-redact'
+						<CodeBlock code={`import { searchAndRedact } from '@liiift-studio/pdf-redact'
 import { readFile, writeFile } from 'node:fs/promises'
 
 const pdf = await readFile('document.pdf')
@@ -142,7 +142,7 @@ console.log(\`\${result.redactedCount} regions redacted\`)`} />
 					</div>
 					<div className="flex flex-col gap-3">
 						<p className="text-xs" style={{ color: "var(--ink-dim)" }}>Redact specific regions by coordinate</p>
-						<CodeBlock code={`import { redact } from 'pdf-redact'
+						<CodeBlock code={`import { redact } from '@liiift-studio/pdf-redact'
 
 const result = await redact(pdf.buffer, [
   { page: 1, x: 72, y: 140, width: 200, height: 18 },
@@ -151,7 +151,7 @@ const result = await redact(pdf.buffer, [
 					</div>
 					<div className="flex flex-col gap-3">
 						<p className="text-xs" style={{ color: "var(--ink-dim)" }}>Entity patterns — SSN, phone, email, credit card, and more</p>
-						<CodeBlock code={`import { redactEntities } from 'pdf-redact'
+						<CodeBlock code={`import { redactEntities } from '@liiift-studio/pdf-redact'
 
 const result = await redactEntities(pdf.buffer, [
   'ssn', 'phone', 'email', 'credit-card',
@@ -168,10 +168,10 @@ const result = await redactEntities(pdf.buffer, [
 					</div>
 					<div className="flex flex-col gap-3">
 						<p className="text-xs" style={{ color: "var(--ink-dim)" }}>CLI</p>
-						<CodeBlock code={`npx pdf-redact search document.pdf "John Smith" --output redacted.pdf
-npx pdf-redact search document.pdf "/\\d{3}-\\d{2}-\\d{4}/g" --color #1a1a1a
-npx pdf-redact entities document.pdf --types ssn,phone,email
-npx pdf-redact verify redacted.pdf`} />
+						<CodeBlock code={`npx @liiift-studio/pdf-redact search document.pdf "John Smith" --output redacted.pdf
+npx @liiift-studio/pdf-redact search document.pdf "/\\d{3}-\\d{2}-\\d{4}/g" --color #1a1a1a
+npx @liiift-studio/pdf-redact entities document.pdf --types ssn,phone,email
+npx @liiift-studio/pdf-redact verify redacted.pdf`} />
 					</div>
 				</div>
 
@@ -217,7 +217,7 @@ npx pdf-redact verify redacted.pdf`} />
 				<div className="flex flex-wrap gap-x-6 gap-y-1" style={{ color: "var(--ink-dim)" }}>
 					<a href="https://liiift.studio" target="_blank" rel="noopener noreferrer" className="hover:opacity-60 transition-opacity">liiift.studio</a>
 					<a href="https://github.com/Liiift-Studio/pdf-redact" target="_blank" rel="noopener noreferrer" className="hover:opacity-60 transition-opacity">GitHub</a>
-					<a href="https://npmjs.com/package/pdf-redact" target="_blank" rel="noopener noreferrer" className="hover:opacity-60 transition-opacity">npm</a>
+					<a href="https://npmjs.com/package/@liiift-studio/pdf-redact" target="_blank" rel="noopener noreferrer" className="hover:opacity-60 transition-opacity">npm</a>
 					<span className="ml-auto font-mono">v{version}</span>
 				</div>
 			</footer>
